@@ -1,14 +1,13 @@
 /*
 Tarkov Graphic Optimizer
 File: app.js
-Version: 2.9.7
-Created: 2026-02-17 00:40
+Version: 3.0.0
+Created: 2026-02-17 17:02
 
-Fixes:
-- Removed stray code after applyHighlight (syntax error)
-- Keep CPU/GPU UI intact
-- Aggressive-only highlight with GPU + resolution linkage
-- Help modal handlers added with safety guards
+Major Update:
+- GPU + Resolution Load Penalty System
+- CPU display removes "無印"
+- Aggressive red cell suggestion inline (small font)
 */
 
 import { intelBase, amdBase } from "./cpu-db.js";
@@ -40,10 +39,7 @@ radio.addEventListener("change",()=>{
 resetCpuAll();
 currentCpuData=radio.value==="Intel"?intelBase:amdBase;
 
-Object.keys(currentCpuData).forEach(gen=>{
-addOption(genSelect,gen);
-});
-
+Object.keys(currentCpuData).forEach(gen=>addOption(genSelect,gen));
 genSelect.disabled=false;
 });
 });
@@ -52,10 +48,7 @@ genSelect.addEventListener("change",()=>{
 resetCpuBelow(gradeSelect);
 if(!genSelect.value)return;
 
-Object.keys(currentCpuData[genSelect.value]).forEach(g=>{
-addOption(gradeSelect,g);
-});
-
+Object.keys(currentCpuData[genSelect.value]).forEach(g=>addOption(gradeSelect,g));
 gradeSelect.disabled=false;
 });
 
@@ -110,13 +103,9 @@ currentGpuBrand=radio.value;
 
 resetGpu();
 
-Object.keys(gpuBase[currentGpuBrand]).forEach(series=>{
-addOption(gpuSeriesSelect,series);
-});
+Object.keys(gpuBase[currentGpuBrand]).forEach(series=>addOption(gpuSeriesSelect,series));
 
 gpuSeriesSelect.disabled=false;
-
-/* 未選択でも番号表示 */
 updateGpuNumbers();
 
 });
@@ -126,7 +115,6 @@ gpuSeriesSelect.addEventListener("change",updateGpuNumbers);
 gpuNumberSelect.addEventListener("change",updateGpuVram);
 
 function updateGpuNumbers(){
-
 gpuNumberSelect.innerHTML='<option value="">選択してください</option>';
 gpuVramSelect.innerHTML='<option value="">番号選択後に表示</option>';
 gpuVramSelect.disabled=true;
@@ -137,9 +125,7 @@ let list=[];
 const selectedSeries=gpuSeriesSelect.value;
 
 Object.keys(gpuBase[currentGpuBrand]).forEach(series=>{
-
 if(!selectedSeries || selectedSeries===series){
-
 Object.keys(gpuBase[currentGpuBrand][series]).forEach(num=>{
 list.push({
 series,
@@ -147,48 +133,34 @@ num,
 ...gpuBase[currentGpuBrand][series][num]
 });
 });
-
 }
-
 });
 
 list.sort((a,b)=>{
-
 if(a.gen!==b.gen) return a.gen-b.gen;
-
 return String(a.num).localeCompare(String(b.num));
-
 });
 
-list.forEach(item=>{
-addOption(gpuNumberSelect,item.num);
-});
-
+list.forEach(item=>addOption(gpuNumberSelect,item.num));
 gpuNumberSelect.disabled=false;
 }
 
 function updateGpuVram(){
-
 gpuVramSelect.innerHTML='<option value="">選択してください</option>';
 
 if(!currentGpuBrand || !gpuNumberSelect.value)return;
 
 Object.keys(gpuBase[currentGpuBrand]).forEach(series=>{
-
 if(gpuBase[currentGpuBrand][series][gpuNumberSelect.value]){
-
 gpuBase[currentGpuBrand][series][gpuNumberSelect.value]
 .vram.forEach(v=>addOption(gpuVramSelect,v+"GB"));
-
 }
-
 });
 
 gpuVramSelect.disabled=false;
 }
 
 function resetGpu(){
-
 gpuSeriesSelect.innerHTML='<option value="">未選択（全表示）</option>';
 gpuNumberSelect.innerHTML='<option value="">選択してください</option>';
 gpuVramSelect.innerHTML='<option value="">番号選択後に表示</option>';
@@ -216,10 +188,7 @@ return;
 }
 
 let cpuTier=currentCpuData[genSelect.value][gradeSelect.value][numberSelect.value].tier;
-
-if(suffixSelect.value==="T"){
-cpuTier=Math.max(1,cpuTier-1);
-}
+if(suffixSelect.value==="T") cpuTier=Math.max(1,cpuTier-1);
 
 let gpuTier;
 let gpuSeries;
@@ -242,7 +211,7 @@ const settings=calculateSettings(cpuTier,gpuTier,vram,resolution);
 
 const cpuName=
 gradeSelect.value+" "+numberSelect.value+
-(suffixSelect.value ? suffixSelect.value : "");
+(suffixSelect.value==="無印" ? "" : suffixSelect.value);
 
 const gpuName=
 gpuSeries+" "+gpuNumberSelect.value+
@@ -250,8 +219,6 @@ gpuSeries+" "+gpuNumberSelect.value+
 
 document.getElementById("cpuResult").innerText=cpuName;
 document.getElementById("gpuResult").innerText=gpuName;
-
-//////////////////////////
 
 renderSettings(settings);
 renderBalance(cpuTier,gpuTier);
@@ -265,45 +232,48 @@ applyHighlight(gpuTier,settings,resolution);
 //////////////////////////
 
 function renderWarning(gpuTier,resolution){
-
 const box=document.getElementById("warningBox");
 
 if(gpuTier<=2 && resolution===2160){
-
 box.style.display="block";
-
 box.innerHTML='⚠ GPU性能に対して <span class="warn-red">高解像度の為</span> フレームレートが低下する可能性があります';
-
 }else{
 box.style.display="none";
 }
-
 }
 
 //////////////////////////
-// Highlight (Aggressive only + GPU & Resolution linked)
+// Highlight + Suggestion
 //////////////////////////
+
 function applyHighlight(gpuTier, settings, resolution){
+if(!settings || !settings.aggressive) return;
 
-  if(!settings || !settings.aggressive) return;
+const lodCell = document.getElementById("agg_lod");
+const visCell = document.getElementById("agg_vis");
 
-  const lodCell = document.getElementById("agg_lod");
-  const visCell = document.getElementById("agg_vis");
+if(!lodCell || !visCell) return;
 
-  if(!lodCell || !visCell) return;
+lodCell.classList.remove("highlight-warning");
+visCell.classList.remove("highlight-warning");
 
-  // clear previous
-  lodCell.classList.remove("highlight-warning");
-  visCell.classList.remove("highlight-warning");
+const weakGPU = (gpuTier <= 2);
+const highRes = (parseInt(resolution) >= 1440);
 
-  const weakGPU = (gpuTier <= 2);
-  const highRes = (parseInt(resolution) >= 1440);
+const lodWarn = weakGPU && highRes && (settings.aggressive.lod >= 2);
+const visWarn = weakGPU && highRes && (settings.aggressive.vis >= 3);
 
-  const lodWarn = weakGPU && highRes && (settings.aggressive.lod >= 2);
-  const visWarn = weakGPU && highRes && (settings.aggressive.vis >= 3);
+if(lodWarn){
+lodCell.classList.add("highlight-warning");
+lodCell.innerHTML = lodCell.innerText +
+'<span class="cell-note"> ※解像度を下げると改善する可能性あり</span>';
+}
 
-  if(lodWarn) lodCell.classList.add("highlight-warning");
-  if(visWarn) visCell.classList.add("highlight-warning");
+if(visWarn){
+visCell.classList.add("highlight-warning");
+visCell.innerHTML = visCell.innerText +
+'<span class="cell-note"> ※解像度を下げると改善する可能性あり</span>';
+}
 }
 
 //////////////////////////
@@ -311,25 +281,14 @@ function applyHighlight(gpuTier, settings, resolution){
 //////////////////////////
 
 function renderBalance(cpuTier,gpuTier){
-
 const diff=cpuTier-gpuTier;
 let text="";
 
-if(diff===0){
-text="CPU = GPU の傾向 👍（どちらも同程度でボトルネックの心配少なめ）";
-}
-else if(diff===-1){
-text="CPU < GPU の傾向（CPUが少し弱くボトルネックの心配が少しあり）";
-}
-else if(diff<=-2){
-text="CPU << GPU の傾向（CPUが弱くボトルネックの心配があります）";
-}
-else if(diff===1){
-text="CPU > GPU の傾向（GPUが少し弱くボトルネックの心配が少しあり）";
-}
-else{
-text="CPU >> GPU の傾向（GPUが弱くボトルネックの心配があります）";
-}
+if(diff===0) text="CPU = GPU の傾向 👍（どちらも同程度でボトルネックの心配少なめ）";
+else if(diff===-1) text="CPU < GPU の傾向（CPUが少し弱くボトルネックの心配が少しあり）";
+else if(diff<=-2) text="CPU << GPU の傾向（CPUが弱くボトルネックの心配があります）";
+else if(diff===1) text="CPU > GPU の傾向（GPUが少し弱くボトルネックの心配が少しあり）";
+else text="CPU >> GPU の傾向（GPUが弱くボトルネックの心配があります）";
 
 document.getElementById("balanceText").innerText=text;
 }
@@ -339,17 +298,20 @@ document.getElementById("balanceText").innerText=text;
 //////////////////////////
 
 function calculateSettings(cpuTier,gpuTier,vram,resolution){
+let baseTier=Math.min(cpuTier,gpuTier);
 
-const baseTier=Math.min(cpuTier,gpuTier);
+let penalty=0;
 
-let recommended=getBaseMatrix(baseTier);
-let aggressive=getBaseMatrix(Math.min(5,baseTier+1));
+if(gpuTier<=2 && resolution>=1440) penalty=1;
+if(gpuTier<=2 && resolution===2160) penalty=2;
+
+const effectiveTier=Math.max(1, baseTier-penalty);
+
+let recommended=getBaseMatrix(effectiveTier);
+let aggressive=getBaseMatrix(Math.min(5,effectiveTier+1));
 
 recommended=applyVramLimit(recommended,vram);
 aggressive=applyVramLimit(aggressive,vram);
-
-recommended=applyTierSafety(recommended,baseTier);
-aggressive=applyTierSafety(aggressive,baseTier+1);
 
 recommended=applyResolutionLimit(recommended,resolution,gpuTier);
 aggressive=applyResolutionLimit(aggressive,resolution,gpuTier);
@@ -363,7 +325,6 @@ aggressive
 }
 
 function getBaseMatrix(tier){
-
 const map={
 1:{tex:1,shadow:1,lod:1,vis:2,aa:0,hbao:0,ssr:0},
 2:{tex:2,shadow:2,lod:2,vis:3,aa:1,hbao:1,ssr:1},
@@ -371,7 +332,6 @@ const map={
 4:{tex:3,shadow:3,lod:3,vis:5,aa:2,hbao:4,ssr:3},
 5:{tex:4,shadow:3,lod:3,vis:5,aa:3,hbao:4,ssr:3}
 };
-
 return JSON.parse(JSON.stringify(map[Math.max(1,Math.min(5,tier))]));
 }
 
@@ -381,17 +341,7 @@ else if(vram<=6)settings.tex=Math.min(settings.tex,3);
 return settings;
 }
 
-function applyTierSafety(settings,tier){
-if(tier>=5){
-settings.vis=Math.min(settings.vis,5);
-settings.lod=Math.min(settings.lod,3);
-settings.shadow=Math.min(settings.shadow,3);
-}
-return settings;
-}
-
 function applyResolutionLimit(settings,resolution,gpuTier){
-
 let maxVis=6;
 
 if(gpuTier<=2) maxVis=3;
@@ -401,19 +351,14 @@ if(resolution===2160) maxVis=4;
 }
 
 settings.vis=Math.min(settings.vis,maxVis);
-
 return settings;
 }
 
 function applyColoredUltraLimit(settings,gpuTier,vram,isAggressive){
-
 if(!isAggressive)return settings;
 
-if(gpuTier>=4 && vram>=10){
-settings.hbao=5;
-}else{
-settings.hbao=Math.min(settings.hbao,4);
-}
+if(gpuTier>=4 && vram>=10) settings.hbao=5;
+else settings.hbao=Math.min(settings.hbao,4);
 
 return settings;
 }
@@ -462,7 +407,6 @@ return list[v]||"-";
 //////////////////////////
 
 function renderSettings(settings){
-
 const r=settings.recommended;
 const a=settings.aggressive;
 
@@ -491,43 +435,3 @@ opt.value=value;
 opt.textContent=value;
 select.appendChild(opt);
 }
-
-//////////////////////////
-// Help Modal Handlers
-//////////////////////////
-
-const helpSpecBtn=document.getElementById("helpSpecBtn");
-const helpResBtn=document.getElementById("helpResBtn");
-const helpSpecModal=document.getElementById("helpSpecModal");
-const helpResModal=document.getElementById("helpResModal");
-const closeSpec=document.getElementById("closeSpec");
-const closeRes=document.getElementById("closeRes");
-
-if(helpSpecBtn && helpSpecModal){
-helpSpecBtn.addEventListener("click",()=>{
-helpSpecModal.style.display="block";
-});
-}
-
-if(helpResBtn && helpResModal){
-helpResBtn.addEventListener("click",()=>{
-helpResModal.style.display="block";
-});
-}
-
-if(closeSpec && helpSpecModal){
-closeSpec.addEventListener("click",()=>{
-helpSpecModal.style.display="none";
-});
-}
-
-if(closeRes && helpResModal){
-closeRes.addEventListener("click",()=>{
-helpResModal.style.display="none";
-});
-}
-
-window.addEventListener("click",(e)=>{
-if(e.target===helpSpecModal) helpSpecModal.style.display="none";
-if(e.target===helpResModal) helpResModal.style.display="none";
-});
