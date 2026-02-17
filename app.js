@@ -1,7 +1,7 @@
 /*
 Tarkov Graphic Optimizer
 File: app.js
-Version: 3.0.3
+Version: 3.1.0
 Created: 2026-02-18
 
 Patch:
@@ -436,6 +436,20 @@ const list=["Off（オフ）","Low（低）","Medium（中）","High（高）","
 return list[v]||"-";
 }
 
+
+// Conditional green color (only when aggressive differs)
+function applyDiffColor(recId, aggId){
+  const rec = document.getElementById(recId);
+  const agg = document.getElementById(aggId);
+  if(!rec || !agg) return;
+
+  if(rec.innerText !== agg.innerText){
+    agg.classList.add("diff");
+  } else {
+    agg.classList.remove("diff");
+  }
+}
+
 //////////////////////////
 // Render
 //////////////////////////
@@ -460,6 +474,16 @@ document.getElementById("agg_vis").innerText=mapVisibility(a.vis);
 document.getElementById("agg_aa").innerText=mapAA(a.aa);
 document.getElementById("agg_hbao").innerText=mapHBAO(a.hbao);
 document.getElementById("agg_ssr").innerText=mapSSR(a.ssr);
+
+
+applyDiffColor("rec_tex","agg_tex");
+applyDiffColor("rec_shadow","agg_shadow");
+applyDiffColor("rec_lod","agg_lod");
+applyDiffColor("rec_vis","agg_vis");
+applyDiffColor("rec_aa","agg_aa");
+applyDiffColor("rec_hbao","agg_hbao");
+applyDiffColor("rec_ssr","agg_ssr");
+
 }
 
 //////////////////////////
