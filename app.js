@@ -1,7 +1,7 @@
 /*
 Tarkov Graphic Optimizer
 File: app.js
-Version: 3.0.2
+Version: 3.0.3
 Created: 2026-02-18
 
 Patch:
@@ -277,8 +277,8 @@ const visText=mapVisibility(a.vis);
 lodCell.classList.add("highlight-warning");
 visCell.classList.add("highlight-warning");
 
-lodCell.innerHTML=lodText+' <span style="font-size:11px;">※解像度を下げると改善する可能性あり</span>';
-visCell.innerHTML=visText+' <span style="font-size:11px;">※解像度を下げると改善する可能性あり</span>';
+lodCell.innerHTML=lodText+' <span style="font-size:11px;">※解像度を下げると改善可</span>';
+visCell.innerHTML=visText+' <span style="font-size:11px;">※解像度を下げると改善可</span>';
 
 }
 
